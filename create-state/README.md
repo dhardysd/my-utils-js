@@ -35,7 +35,7 @@ eDecrement.onclick = () => count.value--;
 // count.value = count.value - 1
 ```
 
-`inde.html`
+`index.html`
 ```html
 <p>
     Contador:
