@@ -62,3 +62,5 @@ function doGet( e ) {
  */
 ```
 (Te aconsejo también lo pongas en un archivo aparte)
+
+![image](https://github.com/user-attachments/assets/b074c926-cd47-4ac5-8a32-6451bc0b7a1c)
