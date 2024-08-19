@@ -118,6 +118,21 @@ class InputRule {
     }
 
     /**
+     * Fires when changes or exits focus
+     * @param { ...( input: HTMLInputElement | HTMLTextAreaElement, e: InputEvent ) }
+     */
+    setChangeHandler( ...callbacks ) {
+
+        this.#_input.addEventListener( 'change', e => {
+
+            for ( const cb of callbacks ) {
+                cb( this.#_input, e );
+            }
+
+        });
+    }
+
+    /**
      * @param { ...( element: HTMLInputElement | HTMLTextAreaElement ) => Boolean? } callbacks
      * They are executed when "submit" event is fire
     */
