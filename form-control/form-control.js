@@ -1,60 +1,88 @@
 export class FormControl {
 
+    /**@type { HTMLFormElement } */
     #_form;
-    #_submitRules = [];
+    
+    /**
+     * @type { ( ( ) => Boolean )[][] }
+     * Array of PageForm ( each page is an array of submit rules )
+     */
+    submitRules = [];
 
-    /**@param { String } selector CSS Selector of FormElement */
-    constructor( selector ) {
-        
-        /**@type { HTMLFormElement? } */
-        const _FORM = document.querySelector( selector );
-        this.#_form = _FORM;
+    /**
+     * @param { String } selector
+     * CSS selector of a FormElement
+     * @param { HTMLElement | Document | ShadowRoot } context
+     * by default is `document`
+     */
+    constructor( selector, context = document ) {
+
+        this.#_form = context.querySelector( selector );
+
     }
 
-    /** @param { String } selector CSS Selector of Input | TextArea */
-    selectInput( selector ) {
-        
-        const _INPUT = this.#_form.querySelector( selector );
-        return new InputRule( _INPUT, this.#_submitRules );
 
-    }
+    /**Creates a new PageForm */
+    createPage( ) {
 
-    /** @param { String } selector CSS Selector of HTMLElement */
-    selectElement( selector ) {
-
-        const _ELEMENT = this.#_form.querySelector( selector );
-        return new ElementRule( _ELEMENT, this.#_submitRules );
+        return new PageForm( this.#_form , this.submitRules );
 
     }
 
     /**
-     * "preventDefault" is actived.
-     * @param { ( form: HTMLFormElement, e: SubmitEvent ) => void } callback
-     * It is executed as long as all submitRules return true
+     * Sets the submit `callback`, executed after all submitRules return `true`.
+     * 
+     * `preventDefault` is applied even if the callback is null.]
+     * 
+     * @param { null | ( form: HTMLFormElement, e: SubmitEvent ) => void } callback
      */
     setSubmitCallback( callback ) {
         
-        let isSatisfy = false;
-        
-        this.#_form.addEventListener( 'submit', e => {
+        this.#_form.addEventListener( 'submit', event => {
             
-            e.preventDefault();
-            
-            for ( const cb of this.#_submitRules ) {
-                isSatisfy = cb() ?? false;
+            event.preventDefault();
 
-                if ( !isSatisfy ) {
-                    return null;
-                }
-            }
+            const isSatisfy = this.submitRules.every( rules => rules.every( cb => cb() ) );
 
-            if ( callback ) {
-                
-                callback( this.#_form, e );
+            if ( isSatisfy && callback ) {
+
+                callback( this.#_form, event );
 
             }
 
         });
+
+    }
+
+
+    getElement() {
+
+        return this.#_form;
+
+    }
+
+}
+
+class PageForm {
+
+    /**@type {HTMLFormElement} */
+    #_form;
+    
+    #_submitRules = [ ];
+
+    constructor( _form , _submiteRules ) {
+        this.#_form = _form;
+        _submiteRules.push( this.#_submitRules );
+    }
+
+    /**
+     * @param { String } selector
+     * CSS selector of a Field Form
+     */
+    appendInput( selector ) {
+        
+        const _input = this.#_form.querySelector( selector );
+        return new InputRule( _input , this.#_submitRules );
 
     }
 
@@ -62,84 +90,79 @@ export class FormControl {
 
 class InputRule {
 
+    /**@type { HTMLElement } */
     #_input;
+
     #_submitRules;
 
-    /**
-     * @param { HTMLInputElement | HTMLTextAreaElement } input
-     * @param { any[] } _submitRules
-    */
     constructor( input, _submitRules ) {
+
         this.#_input = input;
         this.#_submitRules = _submitRules;
+
     }
 
     /**
-     * "data" is the pressed key, if a "callback" returns false, so "data"
-     * is not entering to input | textarea and the next callbacks are not executed
-     * @param {...(data:String, e:InputEvent)=>Boolean?} callbacks
-     * They are executed everytime "beforeinput" event is fire
+     * Adds rules to be executed on the `beforeinput` event.
+     * @param { ...( data: String, e: InputEvent ) => Boolean? } callbacks
     */
-    setBeforeRules( ...callbacks ) {
+    setBeforeinputRules( ...callbacks ) {
 
         this.#_input.addEventListener( 'beforeinput', e => {
-            
-            let isSatisfy = true;
 
-            for ( const cb of callbacks ) {
-            
-                isSatisfy = cb( e.data, e ) ?? true;
+            const isSatisfy = callbacks.every( cb => cb( e.data , e ) );
+    
+            if ( !isSatisfy ) {
 
-                if ( !isSatisfy ) {
-                    e.preventDefault();
-                    break;
-                }
+                e.preventDefault();
+
             }
-            
+
         });
         
         return this;
     }
 
     /**
-     * @param  { ...( input: HTMLInputElement | HTMLTextAreaElement, e: InputEvent ) => void } callbacks
-     * They are executed everytime "input" event is fire
-    */
-    setAfterHandlers( ...callbacks ) {
+     * Adds handlers for the `input` event.
+     * @param  { ...( input: FieldElement , e: InputEvent ) => void } callbacks
+     */
+    setInputHandlers( ...callbacks ) {
         
         this.#_input.addEventListener( 'input', e => {
 
-            for ( const cb of callbacks ) {
-                cb( this.#_input, e );
-            }
+            callbacks.forEach( cb => cb( this.#_input , e ) );
+
         })
 
         return this;
     }
 
     /**
-     * Fires when changes or exits focus
-     * @param { ...( input: HTMLInputElement | HTMLTextAreaElement, e: InputEvent ) }
+     * Adds handlers for the `change` event.
+     * @param  { ...( input: FieldElement , e: InputEvent ) => void } callbacks
      */
-    setChangeHandler( ...callbacks ) {
+    setChangeHandlers( ...callbacks ) {
 
         this.#_input.addEventListener( 'change', e => {
 
-            for ( const cb of callbacks ) {
-                cb( this.#_input, e );
-            }
+            callbacks.forEach( cb => cb( this.#_input , e ) );
 
         });
+
+        return this;
     }
 
     /**
-     * @param { ...( element: HTMLInputElement | HTMLTextAreaElement ) => Boolean? } callbacks
-     * They are executed when "submit" event is fire
-    */
+     * Adds submit validation rules.
+     * @param { ...(input: FieldElement , event: SubmitEvent ) => Boolean? } callbacks
+     */
     setSubmitRules( ...callbacks ) {
         
         for ( const cb of callbacks ) {
-            this.#_submitRules.push( cb.bind( null, this.#_input ) );
+
+            this.#_submitRules.push( cb.bind( null , this.#_input ) );
+
         }
 
         return this;
@@ -147,42 +170,15 @@ class InputRule {
 
     
     getElement() {
+
         return this.#_input;
+
     }
 
 }
 
 
-class ElementRule {
-
-    #_element;
-    #_submitRules;
-
-    /**
-     * @param { HTMLElement } element 
-     * @param { any[] } _submitRules 
-     */
-    constructor( element, _submitRules ) {
-        this.#_element = element;
-        this.#_submitRules = _submitRules;
-    }
-
-    /**
-     * @param { ...( element: HTMLElement ) => Boolean? } callbacks
-     * They are executed when "submit" event is fire
-    */
-    setSubmitRules( ...callbacks ) {
-        
-        for ( const cb of callbacks ) {
-            this.#_submitRules.push( cb.bind( null, this.#_element ) );
-        }
-
-        return this;
-    }
-
-
-    getElement() {
-        return this.#_element;
-    }
-
-}
+/**
+ * @typedef { HTMLElement | HTMLTextAreaElement | HTMLInputElement | HTMLSelectElement } FieldElement
+ * HTMLElement | HTMLTextAreaElement | HTMLInputElement | HTMLSelectElement
+ */
