@@ -86,6 +86,23 @@ class PageForm {
 
     }
 
+    /**
+     * Adds submit validation rules.
+     * 
+     * `input` is form.elements
+     * 
+     * @param { ...(input: FieldElement , event: SubmitEvent ) => Boolean? } callbacks
+     */
+    setSubmitRules( ...callbacks ) {
+        
+        for ( const cb of callbacks ) {
+
+            this.#_submitRules.push( cb.bind( null , this.#_form.elements ) );
+
+        }
+
+    }
+
 }
 
 class InputRule {
